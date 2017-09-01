@@ -1,3 +1,12 @@
-[B]Version v0.5.5-1[/B]
+[B]Version 0.5.6[/B]
+- Remove SCC and DFXP support for Python < 2.7
+- Version 0.5.6
+- Remove DFXP and SCC support for Python < 2.7
+- Version 0.5.5
+
+[B]Version v0.5.6[/B]
+- Remove DFXP and SCC support for Python < 2.7
+- Version 0.5.5
+- Version 0.5.5-1
 - Ignore cues with missing content
 
