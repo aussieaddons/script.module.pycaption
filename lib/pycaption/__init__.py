@@ -1,23 +1,21 @@
 from .base import (
     CaptionConverter, CaptionNode, Caption, CaptionList, CaptionSet)
-from .dfxp import DFXPWriter, DFXPReader
 from .srt import SRTReader, SRTWriter
-from .scc import SCCReader, SCCWriter
 from .webvtt import WebVTTReader, WebVTTWriter
 from .exceptions import (
     CaptionReadError, CaptionReadNoCaptions, CaptionReadSyntaxError)
 
 
 __all__ = [
-    'CaptionConverter', 'DFXPReader', 'DFXPWriter',
+    'CaptionConverter',
     'SRTReader', 'SRTWriter',
-    'SCCReader', 'SCCWriter', 'WebVTTReader', 'WebVTTWriter',
+    'WebVTTReader', 'WebVTTWriter',
     'CaptionReadError', 'CaptionReadNoCaptions', 'CaptionReadSyntaxError',
     'detect_format', 'CaptionNode', 'Caption', 'CaptionList', 'CaptionSet'
 ]
 
 SUPPORTED_READERS = (
-    DFXPReader, WebVTTReader, SRTReader, SCCReader)
+    WebVTTReader, SRTReader)
 
 
 def detect_format(caps):
