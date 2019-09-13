@@ -1,7 +1,9 @@
-<?xml version="1.0" ?><addon id="script.module.pycaption" name="pycaption" provider-name="Aussie Add-ons" version="0.5.5-1">
+<?xml version="1.0" ?><addon id="script.module.pycaption" name="pycaption" provider-name="Aussie Add-ons" version="0.0.1">
   <requires>
     <import addon="xbmc.python" version="2.1.0"/>
     <import addon="script.module.beautifulsoup4"/>
+    <import addon="script.module.future"/>
+    <import addon="script.module.six"/>
   </requires>
   <extension library="lib" point="xbmc.python.module"/>
   <extension point="xbmc.addon.metadata">

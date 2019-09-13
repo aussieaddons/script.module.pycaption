@@ -1,18 +1,27 @@
+from __future__ import division, unicode_literals
+
 import re
-
+from builtins import object
 from copy import deepcopy
-
-from bs4 import BeautifulSoup, NavigableString
 from xml.sax.saxutils import escape
 
+from bs4 import BeautifulSoup, NavigableString
+
+from past.utils import old_div
+
+import six
+
 from ..base import (
-    BaseReader, BaseWriter, CaptionSet, CaptionList, Caption, CaptionNode,
-    DEFAULT_LANGUAGE_CODE)
+    BaseReader, BaseWriter, Caption, CaptionList, CaptionNode, CaptionSet,
+    DEFAULT_LANGUAGE_CODE
+)
 from ..exceptions import (
-    CaptionReadNoCaptions, CaptionReadSyntaxError, InvalidInputError)
+    CaptionReadNoCaptions, CaptionReadSyntaxError, InvalidInputError
+)
 from ..geometry import (
-    Point, Stretch, UnitEnum, Padding, VerticalAlignmentEnum,
-    HorizontalAlignmentEnum, Alignment, Layout)
+    Alignment, HorizontalAlignmentEnum, Layout, Padding, Point, Stretch,
+    UnitEnum, VerticalAlignmentEnum
+)
 from ..utils import is_leaf
 
 __all__ = [
@@ -48,6 +57,8 @@ DFXP_DEFAULT_REGION_ID = u'bottom'
 
 class DFXPReader(BaseReader):
     def __init__(self, *args, **kw):
+        super(DFXPReader, self).__init__(*args, **kw)
+
         self.read_invalid_positioning = (
             kw.get('read_invalid_positioning', False))
         self.nodes = []
@@ -59,11 +70,12 @@ class DFXPReader(BaseReader):
             return False
 
     def read(self, content):
-        if type(content) != unicode:
+        if type(content) != six.text_type:
             raise InvalidInputError(u'The content is not a unicode string.')
 
         dfxp_document = self._get_dfxp_parser_class()(
-            content, read_invalid_positioning=self.read_invalid_positioning)
+            content, read_invalid_positioning=self.read_invalid_positioning,
+            ignore_layout=self.ignore_layout)
 
         caption_dict = {}
         style_dict = {}
@@ -110,7 +122,8 @@ class DFXPReader(BaseReader):
         styles = self._translate_style(p_tag)
 
         return Caption(
-            start, end, self.nodes, style=styles, layout_info=p_tag.layout_info)
+            start, end, self.nodes, style=styles,
+            layout_info=p_tag.layout_info)
 
     def _find_times(self, p_tag):
         start = self._translate_time(p_tag[u'begin'])
@@ -130,7 +143,7 @@ class DFXPReader(BaseReader):
                 timesplit[2] = timesplit[2] + u'.000'
             secsplit = timesplit[2].split(u'.')
             if len(timesplit) > 3:
-                secsplit.append((int(timesplit[3]) / 30) * 100)
+                secsplit.append((old_div(int(timesplit[3]), 30)) * 100)
             while len(secsplit[1]) < 3:
                 secsplit[1] += u'0'
             microseconds = (int(timesplit[0]) * 3600000000 +
@@ -152,7 +165,8 @@ class DFXPReader(BaseReader):
             elif metric == u"ms":
                 microseconds = value * 1000
             else:
-                raise InvalidInputError(u"Unsupported offset-time metric " + metric)
+                raise InvalidInputError(
+                    u"Unsupported offset-time metric " + metric)
 
             return int(microseconds)
 
@@ -160,7 +174,7 @@ class DFXPReader(BaseReader):
         # convert text
         if isinstance(tag, NavigableString):
             # strips indentation whitespace only
-            pattern = re.compile(u"^(?:[\n\r]+\s*)?(.+)")
+            pattern = re.compile(u"^(?:[\n\r]+\\s*)?(.+)")
             result = pattern.search(tag)
             if result:
                 # Escaping/unescaping xml entities is the responsibility of the
@@ -180,10 +194,28 @@ class DFXPReader(BaseReader):
         elif tag.name == u'span':
             # convert span
             self._translate_span(tag)
+        elif tag.name == u'p' and self.is_tag_content_empty(tag.contents):
+            node = CaptionNode.create_text(
+                u'', layout_info=tag.layout_info)
+            self.nodes.append(node)
         else:
             # recursively call function for any children elements
             for a in tag.contents:
                 self._translate_tag(a)
+
+    def is_tag_content_empty(self, content_list):
+        for content in content_list:
+            # recursively check empty content for any children elements
+            if not isinstance(content, NavigableString):
+                if not self.is_tag_content_empty(content.contents):
+                    return False
+                continue
+
+            # avoid confusing newline with not empty content
+            content = content.replace('\n', '')
+            if content:
+                return False
+        return True
 
     def _translate_span(self, tag):
         # convert tag attributes
@@ -232,11 +264,14 @@ class DFXPReader(BaseReader):
                 attrs[u'classes'] = dfxp_attrs[arg].strip().split(u' ')
                 # Save old class attribute for compatibility
                 attrs[u'class'] = dfxp_attrs[arg]
-            elif arg.lower() == u"tts:fontstyle" and dfxp_attrs[arg] == u"italic":
+            elif arg.lower() == u"tts:fontstyle" and dfxp_attrs[
+                    arg] == u"italic":
                 attrs[u'italics'] = True
-            elif arg.lower() == u"tts:fontweight" and dfxp_attrs[arg] == u"bold":
+            elif arg.lower() == u"tts:fontweight" and dfxp_attrs[
+                    arg] == u"bold":
                 attrs[u'bold'] = True
-            elif arg.lower() == u"tts:textdecoration" and u"underline" in dfxp_attrs[arg].strip().split(u" "):
+            elif arg.lower() == u"tts:textdecoration" and u"underline" in \
+                    dfxp_attrs[arg].strip().split(u" "):
                 attrs[u'underline'] = True
             elif arg.lower() == u"tts:textalign":
                 attrs[u'text-align'] = dfxp_attrs[arg]
@@ -267,6 +302,8 @@ class DFXPWriter(BaseWriter):
         :rtype: unicode
         """
         dfxp = BeautifulSoup(DFXP_BASE_MARKUP, u'xml')
+        if 'xmlns:' in dfxp.tt.attrs:
+            dfxp.tt.attrs['xmlns'] = dfxp.tt.attrs.pop('xmlns:')
         dfxp.find(u'tt')[u'xml:lang'] = u"en"
 
         langs = caption_set.get_languages()
@@ -293,14 +330,15 @@ class DFXPWriter(BaseWriter):
             dfxp = self._recreate_styling_tag(
                 DFXP_DEFAULT_STYLE_ID, DFXP_DEFAULT_STYLE, dfxp)
 
-        self.region_creator = self._get_region_creator_class()(dfxp, caption_set)
+        self.region_creator = self._get_region_creator_class()(dfxp,
+                                                               caption_set)
         self.region_creator.create_document_regions()
 
         body = dfxp.find(u'body')
 
         for lang in langs:
             div = dfxp.new_tag(u'div')
-            div[u'xml:lang'] = unicode(lang)
+            div[u'xml:lang'] = six.text_type(lang)
             self._assign_positioning_data(div, lang, caption_set)
 
             for caption in caption_set.get_captions(lang):
@@ -403,7 +441,7 @@ class DFXPWriter(BaseWriter):
             styles = u''
 
             content_with_style = _recreate_style(node.content, dfxp)
-            for style, value in content_with_style.items():
+            for style, value in list(content_with_style.items()):
                 styles += u' %s="%s"' % (style, value)
             if node.layout_info:
                 region_id, region_attribs = (
@@ -416,7 +454,7 @@ class DFXPWriter(BaseWriter):
                     styles += u' ' + u' '.join(
                         [
                             u'{key}="{val}"'.format(key=k_, val=v_)
-                            for k_, v_ in region_attribs.items()
+                            for k_, v_ in list(region_attribs.items())
                         ]
                     )
 
@@ -462,16 +500,17 @@ class LayoutAwareDFXPParser(BeautifulSoup):
 
     def __init__(self, markup=u"", features=u"html.parser", builder=None,
                  parse_only=None, from_encoding=None,
-                 read_invalid_positioning=False, **kwargs):
+                 read_invalid_positioning=False, ignore_layout=False,
+                 **kwargs):
         """The `features` param determines the parser to be used. The parsers
         are usually html parsers, some more forgiving than others, and as such
         they do stuff very differently especially for xml files. We chose this
         one because even though the docs say it's slower, it's very forgiving
         (it allows unescaped `<` characters, for example). It doesn't support
         the `&apos;` entity, however, since it respects the HTML4 and not HTML5
-        syntax. Since this is valid XML 1.0, as a workaround we have to manually
-        replace the every occurance of this entity in the string before using
-        the parser.
+        syntax. Since this is valid XML 1.0, as a workaround we have to
+        manually replace the every occurance of this entity in the string
+        before using the parser.
 
         The reason why we haven't used the 'xml' parser is that it destroys
         characters such as < or & (even the escaped ones).
@@ -491,7 +530,8 @@ class LayoutAwareDFXPParser(BeautifulSoup):
 
         Check out the docs below for explanation.
         http://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser
-        """
+        """  # noqa: E501
+        self.ignore_layout = ignore_layout
 
         # Work around for lack of '&apos;' support in html.parser
         markup = markup.replace(u"&apos;", "'")
@@ -605,6 +645,9 @@ class LayoutAwareDFXPParser(BeautifulSoup):
             into action (at the moment) if the
         :rtype: Layout
         """
+        if self.ignore_layout:
+            return self.NO_POSITIONING_INFO
+
         region_tag = None
 
         if region_id is not None:
@@ -1031,7 +1074,7 @@ class RegionCreator(object):
 
         :type prefix: unicode
         """
-        new_id = unicode((prefix or u'') + unicode(self._id_seed))
+        new_id = six.text_type((prefix or u'') + six.text_type(self._id_seed))
         self._id_seed += 1
         return new_id
 

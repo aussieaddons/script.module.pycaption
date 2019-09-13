@@ -1,8 +1,13 @@
-from ..base import CaptionList, Caption, CaptionNode
-from ..geometry import (UnitEnum, Size, Layout, Point, Alignment,
-                        VerticalAlignmentEnum, HorizontalAlignmentEnum)
+from __future__ import unicode_literals
 
-from .constants import PAC_BYTES_TO_POSITIONING_MAP, COMMANDS
+from builtins import object
+
+from .constants import COMMANDS, PAC_BYTES_TO_POSITIONING_MAP
+from ..base import Caption, CaptionList, CaptionNode
+from ..geometry import (
+    Alignment, HorizontalAlignmentEnum, Layout, Point,
+    Size, UnitEnum, VerticalAlignmentEnum
+)
 
 
 class PreCaption(object):
@@ -28,8 +33,8 @@ class PreCaption(object):
 
 
 class TimingCorrectingCaptionList(list):
-    """List of captions. When appending new elements, it will correct the end time
-    of the last ones, so they end when the new caption gets added.
+    """List of captions. When appending new elements, it will correct the end
+    time of the last ones, so they end when the new caption gets added.
 
     "last ones" could mean the last caption `append`ed or all of the last
     captions with which this list was `extended`
@@ -148,7 +153,9 @@ class NotifyingDict(dict):
 class CaptionCreator(object):
     """Creates and maintains a collection of Captions
     """
-    def __init__(self):
+    def __init__(self, ignore_layout=False):
+        self.ignore_layout = ignore_layout
+
         self._collection = TimingCorrectingCaptionList()
 
         # subset of self._collection;
@@ -203,6 +210,9 @@ class CaptionCreator(object):
         self._still_editing = [caption]
 
         for instruction in node_buffer:
+            layout_info = _get_layout_from_tuple(
+                instruction.position) if not self.ignore_layout else None
+
             # skip empty elements
             if instruction.is_empty():
                 continue
@@ -216,7 +226,7 @@ class CaptionCreator(object):
             # handle line breaks
             elif instruction.is_explicit_break():
                 caption.nodes.append(CaptionNode.create_break(
-                    layout_info=_get_layout_from_tuple(instruction.position)
+                    layout_info=layout_info
                 ))
 
             # handle open italics
@@ -224,9 +234,7 @@ class CaptionCreator(object):
                 caption.nodes.append(
                     CaptionNode.create_style(
                         True, {u'italics': True},
-                        layout_info=_get_layout_from_tuple(
-                            instruction.position
-                        ))
+                        layout_info=layout_info)
                 )
 
             # handle clone italics
@@ -234,13 +242,11 @@ class CaptionCreator(object):
                 caption.nodes.append(
                     CaptionNode.create_style(
                         False, {u'italics': True},
-                        layout_info=_get_layout_from_tuple(
-                            instruction.position)
-                    ))
+                        layout_info=layout_info)
+                    )
 
             # handle text
             elif instruction.is_text_node():
-                layout_info = _get_layout_from_tuple(instruction.position)
                 caption.nodes.append(
                     CaptionNode.create_text(
                         instruction.get_text(), layout_info=layout_info),
@@ -419,7 +425,7 @@ def _get_layout_from_tuple(position_tuple):
     horizontal = Size(100 * column / 32.0, UnitEnum.PERCENT)
     vertical = Size(100 * (row - 1) / 15.0, UnitEnum.PERCENT)
     return Layout(origin=Point(horizontal, vertical),
-                  alignment=Alignment(HorizontalAlignmentEnum.LEFT,
+                  alignment=Alignment(HorizontalAlignmentEnum.CENTER,
                                       VerticalAlignmentEnum.TOP)
                   )
 

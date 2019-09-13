@@ -1,5 +1,12 @@
+from __future__ import division, unicode_literals
+
+from builtins import object
 from datetime import timedelta
 from numbers import Number
+
+from past.utils import old_div
+
+import six
 
 from .exceptions import CaptionReadError, CaptionReadTimingError
 
@@ -22,20 +29,20 @@ class CaptionConverter(object):
     def read(self, content, caption_reader):
         try:
             self.captions = caption_reader.read(content)
-        except AttributeError, e:
+        except AttributeError as e:
             raise Exception(e)
         return self
 
     def write(self, caption_writer):
         try:
             return caption_writer.write(self.captions)
-        except AttributeError, e:
+        except AttributeError as e:
             raise Exception(e)
 
 
 class BaseReader(object):
     def __init__(self, *args, **kwargs):
-        pass
+        self.ignore_layout = kwargs.get('ignore_layout', False)
 
     def detect(self, content):
         if content:
@@ -63,10 +70,10 @@ class BaseWriter(object):
             converted were made. This is necessary for relativization.
         :param video_height: The height of the video for which the captions
             being converted were made. This is necessary for relativization.
-        :param fit_to_screen: If extent is not set or if origin + extent > 100%,
-            (re)calculate it based on origin. It is a pycaption fix for caption
-            files that are technically valid but contains inconsistent settings
-            that may cause long captions to be cut out of the screen.
+        :param fit_to_screen: If extent is not set or if origin + extent > 100%
+            , (re)calculate it based on origin. It is a pycaption fix for
+            caption files that are technically valid but contains inconsistent
+            settings that may cause long captions to be cut out of the screen.
         """
         self.relativize = relativize
         self.video_width = video_width
@@ -133,7 +140,7 @@ class CaptionNode(object):
         elif t == CaptionNode.STYLE:
             return repr(u'STYLE: %s %s' % (self.start, self.content))
         else:
-            raise RuntimeError(u'Unknown node type: ' + unicode(t))
+            raise RuntimeError(u'Unknown node type: ' + six.text_type(t))
 
     @staticmethod
     def create_text(text, layout_info=None):
@@ -228,9 +235,9 @@ class Caption(object):
         return u''.join(text_nodes).strip()
 
     def _format_timestamp(self, value, msec_separator=None):
-        datetime_value = timedelta(milliseconds=(int(value / 1000)))
+        datetime_value = timedelta(milliseconds=(int(old_div(value, 1000))))
 
-        str_value = unicode(datetime_value)[:11]
+        str_value = six.text_type(datetime_value)[:11]
         if not datetime_value.microseconds:
             str_value += u'.000'
 
@@ -244,7 +251,7 @@ class CaptionList(list):
     """ A list of captions with a layout object attached to it """
     def __init__(self, iterable=None, layout_info=None):
         """
-        :param iterator: An iterator used to populate the caption list
+        :param iterable: An iterator used to populate the caption list
         :param Layout layout_info: A Layout object with the positioning info
         """
         self.layout_info = layout_info
@@ -254,6 +261,12 @@ class CaptionList(list):
     def __getslice__(self, i, j):
         return CaptionList(
             list.__getslice__(self, i, j), layout_info=self.layout_info)
+
+    def __getitem__(self, y):
+        item = list.__getitem__(self, y)
+        if isinstance(item, Caption):
+            return item
+        return CaptionList(item, layout_info=self.layout_info)
 
     def __add__(self, other):
         add_is_safe = (
@@ -297,7 +310,7 @@ class CaptionSet(object):
         self._captions[lang] = captions
 
     def get_languages(self):
-        return self._captions.keys()
+        return list(self._captions.keys())
 
     def get_captions(self, lang):
         return self._captions.get(lang, [])
@@ -326,7 +339,7 @@ class CaptionSet(object):
 
     def is_empty(self):
         return all(
-            [len(captions) == 0 for captions in self._captions.values()]
+            [len(captions) == 0 for captions in list(self._captions.values())]
         )
 
     def set_layout_info(self, lang, layout_info):
@@ -356,6 +369,7 @@ class CaptionSet(object):
                     out_captions.append(caption)
             self.set_captions(lang, out_captions)
 
+
 # Functions
 def merge_concurrent_captions(caption_set):
     """Merge captions that have the same start and end times"""
@@ -382,6 +396,7 @@ def merge_concurrent_captions(caption_set):
         if merged_captions:
             caption_set.set_captions(lang, merged_captions)
     return caption_set
+
 
 def merge(captions):
     """

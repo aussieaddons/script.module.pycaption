@@ -1,9 +1,14 @@
+from __future__ import unicode_literals
+
 import os
 
 try:
     import nltk.data
 except ImportError:
-    raise ImportError(u'You must install nltk==2.0.4 and numpy==1.7.1 to be able to use this.')
+    raise ImportError(
+        'You must install nltk==2.0.4 and numpy==1.7.1 '
+        'to be able to use this.')
+
 from pycaption.base import BaseWriter, CaptionNode
 
 
@@ -19,7 +24,8 @@ class TranscriptWriter(BaseWriter):
             lang_transcript = u'* %s Transcript *\n' % lang.upper()
 
             for caption in captions.get_captions(lang):
-                lang_transcript = self._strip_text(caption.nodes, lang_transcript)
+                lang_transcript = self._strip_text(caption.nodes,
+                                                   lang_transcript)
 
             lang_transcript = u'\n'.join(self.nltk.tokenize(lang_transcript))
             transcripts.append(lang_transcript)

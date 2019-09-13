@@ -40,11 +40,14 @@ Pop-On:
     the the commands don't have to necessarily be on the same row.
 
     1. 94ae [ENM] (erase non displayed memory)
-    2. 9420 [RCL] (resume caption loading => this command here means we're using Pop-On captions)
+    2. 9420 [RCL] (resume caption loading => this command here means we're
+        using Pop-On captions)
     2.1? [ENM] - if step 0 was skipped?
-    3. [PAC] Positioning/ styling command (can position on columns divisible by 4)
+    3. [PAC] Positioning/ styling command (can position on columns divisible
+        by 4)
         The control chars is called Preamble Address Code [PAC].
-    4. If positioning needs to be on columns not divisible by 4, use a [TO] command
+    4. If positioning needs to be on columns not divisible by 4, use a
+        [TO] command
     5. text
     6. 942c [EDM] - optionally, erase the currently displayed caption
     7. 942f [EOC] display the caption
@@ -76,29 +79,34 @@ http://www.theneitherworld.com/mcpoodle/SCC_TOOLS/DOCS/SCC_FORMAT.HTML
  dictionary. This is legacy logic, that I didn't know how to handle, and
  just carried over when implementing positioning.
 """
+from __future__ import division, unicode_literals
 
-
-import re
 import math
-import string
+import re
 import textwrap
+from builtins import object, range
+from copy import deepcopy
+
+from past.utils import old_div
 
 from pycaption.base import (
-    BaseReader, BaseWriter, CaptionSet, CaptionNode,
+    BaseReader, BaseWriter, CaptionNode, CaptionSet
 )
 from pycaption.exceptions import CaptionReadNoCaptions, InvalidInputError
+
+import six
+
 from .constants import (
-    HEADER, COMMANDS, SPECIAL_CHARS, EXTENDED_CHARS, CHARACTERS,
-    MICROSECONDS_PER_CODEWORD, CHARACTER_TO_CODE,
-    SPECIAL_OR_EXTENDED_CHAR_TO_CODE, PAC_BYTES_TO_POSITIONING_MAP,
+    CHARACTERS, CHARACTER_TO_CODE, COMMANDS, EXTENDED_CHARS, HEADER,
+    MICROSECONDS_PER_CODEWORD,
+    PAC_BYTES_TO_POSITIONING_MAP,
     PAC_HIGH_BYTE_BY_ROW, PAC_LOW_BYTE_BY_ROW_RESTRICTED,
+    SPECIAL_CHARS, SPECIAL_OR_EXTENDED_CHAR_TO_CODE,
 )
 from .specialized_collections import (
-    TimingCorrectingCaptionList, NotifyingDict, CaptionCreator,
-    InstructionNodeCreator)
-
+    CaptionCreator, InstructionNodeCreator, NotifyingDict,
+)
 from .state_machines import DefaultProvidingPositionTracker
-from copy import deepcopy
 
 
 class NodeCreatorFactory(object):
@@ -147,14 +155,15 @@ def get_corrected_end_time(caption):
     return caption.start + 4 * 1000 * 1000
 
 
-
 class SCCReader(BaseReader):
     """Converts a given unicode string to a CaptionSet.
 
     This can be then later used for converting into any other supported formats
     """
     def __init__(self, *args, **kw):
-        self.caption_stash = CaptionCreator()
+        super(SCCReader, self).__init__(*args, **kw)
+
+        self.caption_stash = CaptionCreator(ignore_layout=self.ignore_layout)
         self.time_translator = _SccTimeTranslator()
 
         self.node_creator_factory = NodeCreatorFactory(
@@ -195,10 +204,10 @@ class SCCReader(BaseReader):
     def read(self, content, lang=u'en-US', simulate_roll_up=False, offset=0):
         """Converts the unicode string into a CaptionSet
 
-        :type content: unicode
+        :type content: six.text_type
         :param content: The SCC content to be converted to a CaptionSet
 
-        :type lang: unicode
+        :type lang: six.text_type
         :param lang: The language of the caption
 
         :type simulate_roll_up: bool
@@ -211,7 +220,7 @@ class SCCReader(BaseReader):
 
         :rtype: CaptionSet
         """
-        if type(content) != unicode:
+        if type(content) != six.text_type:
             raise InvalidInputError(u'The content is not a unicode string.')
 
         self.simulate_roll_up = simulate_roll_up
@@ -226,6 +235,16 @@ class SCCReader(BaseReader):
         self._flush_implicit_buffers()
 
         captions = CaptionSet({lang: self.caption_stash.get_all()})
+
+        # check captions for incorrect lengths
+        for cap in captions.get_captions(lang):
+            # if there's an end time on a caption and the difference is
+            # less than .05s kill it (this is likely caused by a standalone
+            # EOC marker in the SCC file)
+            if 0 < cap.end - cap.start < 50000:
+                raise ValueError(
+                    'unsupported length found in SCC input file: '
+                    + six.text_type(cap))
 
         if captions.is_empty():
             raise CaptionReadNoCaptions(u"empty caption file")
@@ -494,7 +513,7 @@ class SCCWriter(BaseWriter):
         caption_set = deepcopy(caption_set)
 
         # Only support one language.
-        lang = caption_set.get_languages()[0]
+        lang = list(caption_set.get_languages())[0]
         captions = caption_set.get_captions(lang)
 
         # PASS 1: compute codes for each caption
@@ -505,7 +524,7 @@ class SCCWriter(BaseWriter):
         # Advance start times so as to have time to write to the pop-on
         # buffer; possibly remove the previous clear-screen command
         for index, (code, start, end) in enumerate(codes):
-            code_words = len(code) / 5 + 8
+            code_words = old_div(len(code), 5) + 8
             code_time_microseconds = code_words * MICROSECONDS_PER_CODEWORD
             code_start = start - code_time_microseconds
             if index == 0:
@@ -532,12 +551,12 @@ class SCCWriter(BaseWriter):
     def _layout_line(caption):
         def caption_node_to_text(caption_node):
             if caption_node.type_ == CaptionNode.TEXT:
-                return unicode(caption_node.content)
+                return six.text_type(caption_node.content)
             elif caption_node.type_ == CaptionNode.BREAK:
                 return u'\n'
         caption_text = u''.join(
             [caption_node_to_text(node) for node in caption.nodes])
-        inner_lines = string.split(caption_text, u'\n')
+        inner_lines = caption_text.split('\n')
         inner_lines_laid_out = [textwrap.fill(x, 32) for x in inner_lines]
         return u'\n'.join(inner_lines_laid_out)
 
@@ -573,7 +592,7 @@ class SCCWriter(BaseWriter):
 
     def _text_to_code(self, s):
         code = u''
-        lines = string.split(self._layout_line(s), u'\n')
+        lines = self._layout_line(s).split('\n')
         for row, line in enumerate(lines):
             row += 16 - len(lines)
             # Move cursor to column 0 of the destination row
@@ -592,9 +611,9 @@ class SCCWriter(BaseWriter):
         seconds_float = microseconds / 1000.0 / 1000.0
         # Convert to non-drop-frame timecode
         seconds_float *= 1000.0 / 1001.0
-        hours = math.floor(seconds_float / 3600)
+        hours = math.floor(old_div(seconds_float, 3600))
         seconds_float -= hours * 3600
-        minutes = math.floor(seconds_float / 60)
+        minutes = math.floor(old_div(seconds_float, 60))
         seconds_float -= minutes * 60
         seconds = math.floor(seconds_float)
         seconds_float -= seconds
@@ -606,7 +625,7 @@ class _SccTimeTranslator(object):
     """Converts SCC time to microseconds, keeping track of frames passed
     """
     def __init__(self):
-        self._time = 0
+        self._time = '00:00:00;00'
 
         # microseconds. The offset from which we begin the time calculation
         self.offset = 0
@@ -619,7 +638,8 @@ class _SccTimeTranslator(object):
         :rtype: int
         """
         return self._translate_time(
-            self._time[:-2] + unicode(int(self._time[-2:]) + self._frames),
+            self._time[:-2] + six.text_type(
+                int(self._time[-2:]) + self._frames),
             self.offset
         )
 

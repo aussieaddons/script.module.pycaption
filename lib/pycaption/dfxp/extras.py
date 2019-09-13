@@ -1,13 +1,16 @@
+from __future__ import unicode_literals
+
 # We thought about making pycaption.base objects immutable. This would be nice
 # in a lot of cases, but since the transformations on them could be quite
 # complex, the deepcopy method is good enough sometimes.
 from copy import deepcopy
+from xml.sax.saxutils import escape
+
+from bs4 import BeautifulSoup
 
 from .base import DFXPWriter, DFXP_DEFAULT_REGION
 from ..base import BaseWriter, CaptionNode, merge_concurrent_captions
 
-from xml.sax.saxutils import escape
-from bs4 import BeautifulSoup
 
 LEGACY_DFXP_BASE_MARKUP = u'''
 <tt xmlns="http://www.w3.org/ns/ttml"
@@ -36,7 +39,8 @@ LEGACY_DFXP_DEFAULT_REGION = {
 
 
 class SinglePositioningDFXPWriter(DFXPWriter):
-    """A dfxp writer, that ignores all positioning, using a single provided value
+    """A dfxp writer, that ignores all positioning, using a single provided
+    value
     """
     def __init__(self, default_positioning=DFXP_DEFAULT_REGION,
                  *args, **kwargs):
@@ -53,7 +57,8 @@ class SinglePositioningDFXPWriter(DFXPWriter):
         captions_set = self._create_single_positioning_caption_set(
             captions_set, self.default_positioning)
 
-        return super(SinglePositioningDFXPWriter, self).write(captions_set, force)  # noqa
+        return super(SinglePositioningDFXPWriter, self).write(captions_set,
+                                                              force)
 
     @staticmethod
     def _create_single_positioning_caption_set(caption_set, positioning):
@@ -88,6 +93,7 @@ class SinglePositioningDFXPWriter(DFXPWriter):
 
         return caption_set
 
+
 class LegacyDFXPWriter(BaseWriter):
     """Ported the legacy DFXPWriter from 0.4.5"""
     def __init__(self, *args, **kw):
@@ -99,6 +105,8 @@ class LegacyDFXPWriter(BaseWriter):
         caption_set = merge_concurrent_captions(caption_set)
 
         dfxp = BeautifulSoup(LEGACY_DFXP_BASE_MARKUP, u'xml')
+        if 'xmlns:' in dfxp.tt.attrs:
+            dfxp.tt.attrs['xmlns'] = dfxp.tt.attrs.pop('xmlns:')
         dfxp.find(u'tt')[u'xml:lang'] = u"en"
 
         for style_id, style in caption_set.get_styles():
@@ -127,7 +135,8 @@ class LegacyDFXPWriter(BaseWriter):
             for caption in caption_set.get_captions(lang):
                 if caption.style:
                     caption_style = caption.style
-                    caption_style.update({u'region': LEGACY_DFXP_DEFAULT_REGION_ID})
+                    caption_style.update(
+                        {u'region': LEGACY_DFXP_DEFAULT_REGION_ID})
                 else:
                     caption_style = {u'class': LEGACY_DFXP_DEFAULT_STYLE_ID,
                                      u'region': LEGACY_DFXP_DEFAULT_REGION_ID}
@@ -207,7 +216,7 @@ class LegacyDFXPWriter(BaseWriter):
             styles = u''
 
             content_with_style = self._recreate_style(node.content, dfxp)
-            for style, value in content_with_style.items():
+            for style, value in list(content_with_style.items()):
                 styles += u' %s="%s"' % (style, value)
 
             if styles:

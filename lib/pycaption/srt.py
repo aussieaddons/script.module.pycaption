@@ -1,11 +1,18 @@
+from __future__ import unicode_literals
+
 from copy import deepcopy
 
+import six
+
 from .base import (
-    BaseReader, BaseWriter, CaptionSet, CaptionList, Caption, CaptionNode)
+    BaseReader, BaseWriter, Caption, CaptionList, CaptionNode, CaptionSet)
 from .exceptions import CaptionReadNoCaptions, InvalidInputError
 
 
 class SRTReader(BaseReader):
+    def __init__(self, *args, **kwargs):
+        super(SRTReader, self).__init__(*args, **kwargs)
+
     def detect(self, content):
         lines = content.splitlines()
         if lines[0].isdigit() and u'-->' in lines[1]:
@@ -14,7 +21,7 @@ class SRTReader(BaseReader):
             return False
 
     def read(self, content, lang=u'en-US'):
-        if type(content) != unicode:
+        if type(content) != six.text_type:
             raise InvalidInputError('The content is not a unicode string.')
 
         lines = content.splitlines()
