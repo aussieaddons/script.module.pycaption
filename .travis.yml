@@ -1,19 +1,37 @@
 language: python
+python: 2.7
 env:
   global:
-    - secure: "U0vKgO2g7ZjqXqVXuOXCwBe1u3K24fvLVdCg2QFlsvhbregW1SDrIE4tRzpM4JJvFtrn2s592OJd61gVDVIEtFoKjdjBvTAeNkavadLt6Z3hu8gSCn36iRHlyYNC3e66XCf3gnDEBt490geuO825VYHKDM2x1cbbwANCdBt72jptT4/rhNRfHNqKT9rTHJyxsyH2ib3Mhi7dk+ijVYGfSSmmTREY5TRmUi9bUmK5Gs7F0IcVECe0cZeHWBvVx5L6vvF7jP+hSiblLh+WzM6zTqp5Dgdb4g9PFisxg9XajoEPawDnE5nOuWzvvfx/Rv7OENw/Zxjr+P3nM08W1Ujc3wbnVfMWog7CTvqHVJ1M+5Pp3cpAzbIsUhmXs6BEYACG+vhQzauyfslZjfxV3N5vYGsd6czDE+zC0lVpuo+1Ki6NZw3Biq9D3+w5IeprKCMNYuVG/opiCjV6vM+NjmRbN4fQfUuGy3YUnBCNDfaVWi0wcUhqGsz8kF2o4lxKCF6sdMILXkmFjpV9YwQPcgOCT86jDpC0oq+AL5MG5eF2TTRUV22zD4h0cRONkautb594CB7Mz6TCpK/GVhSYBGMmX1SUvbPv7Vg2+M9fTIupbYl8y2xdF/Um9RB3tzV4CJ2WP9FEeR+I0pAPE48R//z0coiTDATVCTipwQnTKPkUvrU="
+    - secure: U0vKgO2g7ZjqXqVXuOXCwBe1u3K24fvLVdCg2QFlsvhbregW1SDrIE4tRzpM4JJvFtrn2s592OJd61gVDVIEtFoKjdjBvTAeNkavadLt6Z3hu8gSCn36iRHlyYNC3e66XCf3gnDEBt490geuO825VYHKDM2x1cbbwANCdBt72jptT4/rhNRfHNqKT9rTHJyxsyH2ib3Mhi7dk+ijVYGfSSmmTREY5TRmUi9bUmK5Gs7F0IcVECe0cZeHWBvVx5L6vvF7jP+hSiblLh+WzM6zTqp5Dgdb4g9PFisxg9XajoEPawDnE5nOuWzvvfx/Rv7OENw/Zxjr+P3nM08W1Ujc3wbnVfMWog7CTvqHVJ1M+5Pp3cpAzbIsUhmXs6BEYACG+vhQzauyfslZjfxV3N5vYGsd6czDE+zC0lVpuo+1Ki6NZw3Biq9D3+w5IeprKCMNYuVG/opiCjV6vM+NjmRbN4fQfUuGy3YUnBCNDfaVWi0wcUhqGsz8kF2o4lxKCF6sdMILXkmFjpV9YwQPcgOCT86jDpC0oq+AL5MG5eF2TTRUV22zD4h0cRONkautb594CB7Mz6TCpK/GVhSYBGMmX1SUvbPv7Vg2+M9fTIupbYl8y2xdF/Um9RB3tzV4CJ2WP9FEeR+I0pAPE48R//z0coiTDATVCTipwQnTKPkUvrU=
+notifications:
+  slack:
+    secure: mHAn3eSY1oXs1TmGnmwtRPWT7o9Sm1H/nELM7w6ib0YPv9l5YZr2t1+q26k/ggVBoprM/c3w1vdPgXU/bNVBEfy4C5MgJgzGVwqh/qt8mPSu4eArHtyeRPFNmt+03/qQfURntNPIn3DTE499Glw9NWwTe1/tGOAE/UtpAZLQOEPoS0GnzULdmJ3CAC1bUV13hxRsPetickRLMmnw+YjyOA6N0JhoCIIrnSeLelgDcYLK+FhgF6vto+Rsmc28kizi3CzfxT65N17iDxuGwxddsvS6GDCopvGVM5yMqWTr+3Mttx6IV7wNhD3xhSBXjOY2SYew3d6SmSAM3rVEtifzPo68bIT+uO2DinchE1KRrlRw2zQ234dhIluGkbJalDnZzWIueVzn7TxjjlBh68RoVKc9rVrXctoCHCWNnU/24BcpCtvUv4nWeaW/aZWaEvtHVl3CZPGIvL7ESL8AaDD7r4Dd6VstIilyHanRzTTr0cgXPtQ4tpFTk7ZthxpUKUArmHR15TyTXQ4EelqkvAn7iV078Va3QWk5CgkoQd6+K2T6qtLIxCjwhW6D8dtwM9iV/s0i6INGf4iefKcHJfaR+nJxnaWJu1LR3DeV+8KqK4Jun9lzTpNNSeOhvTVyU74oo9xpoSodFcFwIlW2ohjvKTOzWWRh6ePaexXZ81pDCFA=
 install:
   - pip install GitPython
   - export TRAVIS_COMMIT_MSG="$TRAVIS_REPO_SLUG - $(git log --format=%B --no-merges -n 1)"
-  - git clone https://github.com/xbmc-catchuptv-au/repo-devel.git .deploy
 script:
-  - cd .deploy
-  - ./manage_repo.py ../
-after_script:
+  - test "$TRAVIS_PULL_REQUEST" = "false" || travis_terminate 0
+  - test "$TRAVIS_BRANCH" = "$TRAVIS_TAG" -o "$TRAVIS_BRANCH" = "master" || travis_terminate 0
   - git config --global user.email 'aussieaddons@aussieaddons.com'
   - git config --global user.name 'Aussie Add-ons Bot'
+  - >
+    git clone https://github.com/aussieaddons/repo-devel.git $TRAVIS_BUILD_DIR/.deploy-devel &&
+    cd $TRAVIS_BUILD_DIR/.deploy-devel &&
+    ./manage_repo.py $TRAVIS_BUILD_DIR || travis_terminate 1
   - git config credential.helper "store --file=.git/credentials"
   - echo "https://${GH_TOKEN}:@github.com" > .git/credentials
-  - git add .
-  - git commit --allow-empty -m "$TRAVIS_COMMIT_MSG"
-  - git push
+  - >
+    git add . &&
+    git commit --allow-empty -m "$TRAVIS_COMMIT_MSG" &&
+    git push || travis_terminate 1
+  - if [ -z "$TRAVIS_TAG" ]; then travis_terminate 0; fi
+  - >
+    git clone https://github.com/aussieaddons/repo.git $TRAVIS_BUILD_DIR/.deploy-prod &&
+    cd $TRAVIS_BUILD_DIR/.deploy-prod &&
+    ./manage_repo.py $TRAVIS_BUILD_DIR || travis_terminate 1
+  - git config credential.helper "store --file=.git/credentials"
+  - echo "https://${GH_TOKEN}:@github.com" > .git/credentials
+  - >
+    git add . &&
+    git commit --allow-empty -m "Update $(basename `git -C $TRAVIS_BUILD_DIR rev-parse --show-toplevel`) to $TRAVIS_TAG" &&
+    git push || travis_terminate 1
