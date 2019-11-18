@@ -5,8 +5,6 @@ import re
 import sys
 from copy import deepcopy
 
-from past.utils import old_div
-
 from pycaption.geometry import HorizontalAlignmentEnum
 
 import six
@@ -389,7 +387,7 @@ class WebVTTWriter(BaseWriter):
             # in VTT, the origin of the cue box is the center, not the left
             # top corner
             position = left_offset.value + (
-                old_div(cue_width.value, 2)) if cue_width else 50
+                cue_width.value / 2 ) if cue_width else 50
             cue_settings += " position:{}".format(
                 six.text_type(Size(position, UnitEnum.PERCENT)))
         if top_offset:

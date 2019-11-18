@@ -4,8 +4,6 @@ from builtins import object
 from datetime import timedelta
 from numbers import Number
 
-from past.utils import old_div
-
 import six
 
 from .exceptions import CaptionReadError, CaptionReadTimingError
@@ -235,7 +233,7 @@ class Caption(object):
         return u''.join(text_nodes).strip()
 
     def _format_timestamp(self, value, msec_separator=None):
-        datetime_value = timedelta(milliseconds=(int(old_div(value, 1000))))
+        datetime_value = timedelta(milliseconds=(value // 1000))
 
         str_value = six.text_type(datetime_value)[:11]
         if not datetime_value.microseconds:

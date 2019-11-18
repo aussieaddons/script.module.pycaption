@@ -7,8 +7,6 @@ from xml.sax.saxutils import escape
 
 from bs4 import BeautifulSoup, NavigableString
 
-from past.utils import old_div
-
 import six
 
 from ..base import (
@@ -143,7 +141,7 @@ class DFXPReader(BaseReader):
                 timesplit[2] = timesplit[2] + u'.000'
             secsplit = timesplit[2].split(u'.')
             if len(timesplit) > 3:
-                secsplit.append((old_div(int(timesplit[3]), 30)) * 100)
+                secsplit.append((timesplit[3] // 30) * 100)
             while len(secsplit[1]) < 3:
                 secsplit[1] += u'0'
             microseconds = (int(timesplit[0]) * 3600000000 +
