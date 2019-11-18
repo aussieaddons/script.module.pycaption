@@ -10,7 +10,6 @@ CONVENTIONS:
 from __future__ import division, unicode_literals
 
 from builtins import object
-from past.builtins import cmp
 import six
 
 from .exceptions import RelativizationError
@@ -442,7 +441,7 @@ class Size(object):
 
     def __cmp__(self, other):
         if self.unit == other.unit:
-            return cmp(self.value, other.value)
+            return (self.value > other.value) - (self.value < other.value)
         else:
             raise ValueError(u"The sizes should have the same measure units.")
 
