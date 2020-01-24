@@ -87,8 +87,6 @@ import textwrap
 from builtins import object, range
 from copy import deepcopy
 
-from past.utils import old_div
-
 from pycaption.base import (
     BaseReader, BaseWriter, CaptionNode, CaptionSet
 )
@@ -524,7 +522,7 @@ class SCCWriter(BaseWriter):
         # Advance start times so as to have time to write to the pop-on
         # buffer; possibly remove the previous clear-screen command
         for index, (code, start, end) in enumerate(codes):
-            code_words = old_div(len(code), 5) + 8
+            code_words = len(code) // 5 + 8
             code_time_microseconds = code_words * MICROSECONDS_PER_CODEWORD
             code_start = start - code_time_microseconds
             if index == 0:
@@ -611,9 +609,9 @@ class SCCWriter(BaseWriter):
         seconds_float = microseconds / 1000.0 / 1000.0
         # Convert to non-drop-frame timecode
         seconds_float *= 1000.0 / 1001.0
-        hours = math.floor(old_div(seconds_float, 3600))
+        hours = seconds_float // 3600
         seconds_float -= hours * 3600
-        minutes = math.floor(old_div(seconds_float, 60))
+        minutes = seconds_float // 60
         seconds_float -= minutes * 60
         seconds = math.floor(seconds_float)
         seconds_float -= seconds
