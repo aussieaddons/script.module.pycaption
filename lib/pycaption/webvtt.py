@@ -387,7 +387,7 @@ class WebVTTWriter(BaseWriter):
             # in VTT, the origin of the cue box is the center, not the left
             # top corner
             position = left_offset.value + (
-                cue_width.value / 2 ) if cue_width else 50
+                cue_width.value / 2) if cue_width else 50
             cue_settings += " position:{}".format(
                 six.text_type(Size(position, UnitEnum.PERCENT)))
         if top_offset:

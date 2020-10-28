@@ -10,6 +10,7 @@ CONVENTIONS:
 from __future__ import division, unicode_literals
 
 from builtins import object
+
 import six
 
 from .exceptions import RelativizationError
